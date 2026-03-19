@@ -28,7 +28,7 @@ Stale SQLite files from an older build may miss `tool_policies` or new columns u
 | `INTAKE_ALLOW_DOMAINS` | Optional allow-list of hosts |
 | `INTAKE_DENY_DOMAINS` | Deny-list (default blocks obvious local names) |
 | `REDIS_URL` | Optional, e.g. `redis://localhost:6379/0` — `LPUSH` on new queued runs; worker uses `BRPOP` for faster wake-up (still uses DB as source of truth). |
-| `OPENWEBUI_SYNTHETIC_RUNS` | `true`: non-stream `/v1/chat/completions` creates a real **chat** run and waits for the worker (Option B). |
+| `OPENWEBUI_SYNTHETIC_RUNS` | `true`: `/v1/chat/completions` uses a real **chat** run — non-stream waits for completion; **stream** forwards `message.delta` events (or chunks `output_text`). |
 | `OPENWEBUI_RUN_USER_ID` | User id string stored on synthetic Open WebUI runs (default `openwebui-proxy`). |
 
 **Auth / permissions overview:** [`docs/AUTH_MATRIX.md`](AUTH_MATRIX.md).

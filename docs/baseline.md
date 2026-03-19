@@ -105,7 +105,7 @@ input (chat | workflow)
 #### Open WebUI `/v1` policy
 
 - **Default (Option A):** `/v1/chat/completions` calls **`provider.generate`** only (no `Run` / `run_events`).
-- **Optional (Option B):** set env **`OPENWEBUI_SYNTHETIC_RUNS=true`** — for **non-streaming** completions only, the API creates a **chat** `Run` and polls until the worker finishes so events are written. Requires a running worker (`WORKER_IN_PROCESS` or `python -m worker`). **Streaming** requests still use the provider shortcut.
+- **Optional (Option B):** env **`OPENWEBUI_SYNTHETIC_RUNS=true`** creates a **chat** `Run` for each completion. **Non-stream:** wait for terminal status, return `output_text`. **Stream:** poll `run_events` for `message.delta`, else chunk `output_text`. Requires a running worker.
 
 ---
 

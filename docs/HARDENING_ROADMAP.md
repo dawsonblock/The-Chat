@@ -13,9 +13,9 @@ This maps the **non-negotiable target** (one loop: input → run → runtime →
 |------------------|-----------------|
 | Single `RuntimeEngine.run(run_id)` | **Yes:** [`core/runtime/engine.py`](../core/runtime/engine.py); worker calls only `RuntimeEngine().run` ([`worker.py`](../core/runtime/worker.py)). **Contract:** [`tests/contract/test_api_no_direct_execution.py`](../tests/contract/test_api_no_direct_execution.py). |
 | `emit()` → persist + stream only | **`core/events/emitter.py`** `emit()` → `event_bus.publish` (which persists). Runtime (`service`, `execution/*`, `engine`, `worker`), dispatcher, and tools use `emit`; HTTP may `subscribe` on `event_bus` only. |
-| POST `/api/runs` only entry | **`POST /api/runs`** generic create + **`POST /api/runs/chat`** alias; workflow POST; **`/v1/*`** documented compatibility bypass (Open WebUI). |
-| No tool execution from API routes | Internal intake **gated** by `X-Service-Token`; OpenAI compat still calls `provider` (bypass — see baseline). |
-| Redis + RQ worker | **In-process** worker optional; **`python -m worker`** for external process when `WORKER_IN_PROCESS=false`. |
+| POST `/api/runs` only entry | **`POST /api/runs`** generic create + **`POST /api/runs/chat`** alias; workflow POST; **`/v1/*`** Open WebUI (default `provider` bypass; optional **`OPENWEBUI_SYNTHETIC_RUNS`** → real runs). |
+| No tool execution from API routes | Internal intake **gated** by `X-Service-Token`; `/v1` uses `provider` unless synthetic runs enabled. |
+| Redis + RQ worker | Optional **`REDIS_URL`** wake-up (`LPUSH` / `BRPOP`); in-process or **`python -m worker`** when `WORKER_IN_PROCESS=false`. **RQ/Celery** not used. |
 | Events only in `run_events` | **`tool_calls`**, **`tool_results`**, **`approval_requests`** plus `run_events` — collapse plan in [`docs/schema-collapse.md`](schema-collapse.md). |
 | Postgres JSONB | SQLite default; JSON columns portable to Postgres |
 
@@ -24,7 +24,7 @@ This maps the **non-negotiable target** (one loop: input → run → runtime →
 ## Phase checklist
 
 - [x] **Phase 0 — Freeze baseline** — `docs/baseline.md`, branch `operator-one-hardening`
-- [x] **Phase 1 (v0.7)** — Worker → `RuntimeEngine.run` only; **contract** [`test_api_no_direct_execution.py`](../tests/contract/test_api_no_direct_execution.py). **`executor`** exports only `RuntimeEngine`, `cancel_run`, `is_cancelled`. **Optional:** `OPENWEBUI_SYNTHETIC_RUNS` for non-stream `/v1` (see baseline).
+- [x] **Phase 1 (v0.7)** — Worker → `RuntimeEngine.run` only; **contract** [`test_api_no_direct_execution.py`](../tests/contract/test_api_no_direct_execution.py). **`executor`** exports only `RuntimeEngine`, `cancel_run`, `is_cancelled`. **Optional:** `OPENWEBUI_SYNTHETIC_RUNS` for `/v1` sync + stream (see baseline).
 - [ ] **Phase 2 — Unify run model** — **Backfill** [`backfill_run_events_from_tool_calls()`](../storage/migrate.py) + docs; full table drop still future
 - [x] **Phase 3 (initial)** — `emit()` for runtime + dispatcher; [`test_runtime_uses_emit.py`](../tests/contract/test_runtime_uses_emit.py); typed `RunEvent` union still future
 - [x] **Phase 4 (initial)** — `validate_args` + per-tool `timeout_seconds` + `asyncio.wait_for` in dispatcher; intake still only under `intake/` tools

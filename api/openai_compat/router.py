@@ -4,9 +4,9 @@ from __future__ import annotations
 
 **Default (Option A):** calls ``provider.generate`` directly (no ``Run`` / ``run_events``).
 
-**Optional (Option B):** set ``OPENWEBUI_SYNTHETIC_RUNS=true`` for **non-streaming** requests only:
-creates a **chat** run and polls until the worker finishes so ``run_events`` reflect the turn.
-Streaming requests still use the provider shortcut. See ``docs/baseline.md``.
+**Optional (Option B):** set ``OPENWEBUI_SYNTHETIC_RUNS=true`` to create a **chat** run for each completion.
+Non-stream waits for a terminal status; **stream** polls ``run_events`` for ``message.delta`` chunks, then
+falls back to ``output_text`` if no deltas were emitted. Requires a running worker. See ``docs/baseline.md``.
 """
 
 import asyncio
@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.config import settings
+from core.events.store import event_store
 from core.runtime.provider import provider
 from core.runtime.service import run_service
 
@@ -81,6 +82,73 @@ async def _wait_run_terminal(run_id: str):
     return run_service.get_run(run_id)
 
 
+def _chunk_lines(body: ChatCompletionRequest, cid: str, *, created: int):
+    def chunk_base():
+        return {'id': cid, 'object': 'chat.completion.chunk', 'created': created, 'model': body.model}
+
+    return chunk_base
+
+
+async def _synthetic_stream_events(body: ChatCompletionRequest, prompt: str):
+    """Stream OpenAI-style chunks by polling persisted run events (message.delta)."""
+    run = run_service.create_run(
+        user_id=settings.openwebui_run_user_id,
+        conversation_id=None,
+        kind='chat',
+        input_payload={'message': prompt, 'attachments': []},
+    )
+    run_id = run.id
+    last_seq = 0
+    cid = f'chatcmpl-{uuid.uuid4().hex[:12]}'
+    created = int(time.time())
+    chunk_base = _chunk_lines(body, cid, created=created)
+
+    yield f'data: {json.dumps({**chunk_base(), "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]})}\n\n'
+
+    deadline = time.monotonic() + float(settings.run_timeout_seconds) + 60.0
+    streamed_any = False
+    while time.monotonic() < deadline:
+        events = event_store.load_after(run_id, last_seq)
+        for ev in events:
+            seq = ev.get('seq_no') or 0
+            last_seq = max(last_seq, seq)
+            if ev.get('type') == 'message.delta' and ev.get('text'):
+                streamed_any = True
+                piece = ev['text']
+                yield f'data: {json.dumps({**chunk_base(), "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}]})}\n\n'
+
+        row = run_service.get_run(run_id)
+        if row and row.status in {'succeeded', 'failed', 'cancelled'}:
+            events = event_store.load_after(run_id, last_seq)
+            for ev in events:
+                seq = ev.get('seq_no') or 0
+                last_seq = max(last_seq, seq)
+                if ev.get('type') == 'message.delta' and ev.get('text'):
+                    streamed_any = True
+                    piece = ev['text']
+                    yield f'data: {json.dumps({**chunk_base(), "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}]})}\n\n'
+
+            if not streamed_any:
+                if row.status == 'succeeded':
+                    text = (row.output_text or '').strip() or '(empty response)'
+                else:
+                    text = (row.error_message or 'Run failed.').strip()
+                stream_chunk_chars = 80
+                for i in range(0, len(text), stream_chunk_chars):
+                    piece = text[i : i + stream_chunk_chars]
+                    yield f'data: {json.dumps({**chunk_base(), "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}]})}\n\n'
+
+            yield f'data: {json.dumps({**chunk_base(), "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})}\n\n'
+            yield 'data: [DONE]\n\n'
+            return
+
+        await asyncio.sleep(0.12)
+
+    yield f'data: {json.dumps({**chunk_base(), "choices": [{"index": 0, "delta": {"content": "Run timed out waiting for completion."}, "finish_reason": None}]})}\n\n'
+    yield f'data: {json.dumps({**chunk_base(), "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})}\n\n'
+    yield 'data: [DONE]\n\n'
+
+
 def _prompt_from_messages(messages: list[ChatMessage]) -> str:
     lines: list[str] = []
     for m in messages:
@@ -116,6 +184,9 @@ async def chat_completions(
     prompt = _prompt_from_messages(body.messages)
     if not prompt:
         raise HTTPException(status_code=400, detail='No message content provided.')
+
+    if settings.openwebui_synthetic_runs and body.stream:
+        return StreamingResponse(_synthetic_stream_events(body, prompt), media_type='text/event-stream')
 
     reply: str
     if settings.openwebui_synthetic_runs and not body.stream:
