@@ -9,6 +9,10 @@ usage() {
   echo "Usage: ./start.sh [docker|local]"
   echo "  docker (default) — Ollama, API, Vite shell, Open WebUI (docker compose up --build)"
   echo "  local            — .venv + uvicorn :8000 + npm dev :5173 (LLM_BACKEND=heuristic unless set)"
+  echo ""
+  echo "Docker env (optional):"
+  echo "  START_WITH_REDIS=1     — enable compose profile \"redis\" and default REDIS_URL=redis://redis:6379/0"
+  echo "  OPENWEBUI_SYNTHETIC_RUNS=true — /v1 uses real chat runs (set in .env or export)"
   exit "${1:-0}"
 }
 
@@ -19,6 +23,15 @@ esac
 
 start_docker() {
   echo "Operator One — starting full stack with Docker Compose…"
+  if [ "${START_WITH_REDIS:-0}" = "1" ]; then
+    if [ -n "${COMPOSE_PROFILES:-}" ]; then
+      export COMPOSE_PROFILES="${COMPOSE_PROFILES},redis"
+    else
+      export COMPOSE_PROFILES=redis
+    fi
+    export REDIS_URL="${REDIS_URL:-redis://redis:6379/0}"
+    echo "  • Redis            enabled (REDIS_URL=$REDIS_URL)"
+  fi
   echo "  • Operator shell   http://localhost:5173"
   echo "  • API              http://localhost:8000"
   echo "  • Open WebUI       http://localhost:8080"

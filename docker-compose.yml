@@ -11,6 +11,9 @@ x-backend-runtime-env: &backend_runtime_env
   LOCAL_LLM_BASE_URL: http://ollama:11434/v1
   LOCAL_LLM_MODEL: llama3.2
   CORS_ORIGINS: http://localhost:5173,http://localhost:8080,http://127.0.0.1:8080
+  # From host `.env` or shell (see docs/DEPLOYMENT.md)
+  REDIS_URL: ${REDIS_URL:-}
+  OPENWEBUI_SYNTHETIC_RUNS: ${OPENWEBUI_SYNTHETIC_RUNS:-false}
 
 services:
   ollama:

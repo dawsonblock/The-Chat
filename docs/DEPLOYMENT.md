@@ -60,7 +60,7 @@ Use the repository `docker-compose.yml` as a starting point; verify `DATABASE_UR
 
 **Separate worker (optional):** set `WORKER_IN_PROCESS=false` on the API service and run the `worker` service (Compose profile **`worker`**) so only one process polls the run queue: `docker compose --profile worker up`. Ensure both services share the same `DATABASE_URL` and `SERVICE_TOKEN`.
 
-**Redis wake-up (optional):** `docker compose --profile redis up` starts Redis on **6379**. Set `REDIS_URL=redis://localhost:6379/0` (native) or `redis://redis:6379/0` (from backend container) so new queued runs `LPUSH` and the worker `BRPOP`s for lower latency.
+**Redis wake-up (optional):** `docker compose --profile redis up` starts Redis on **6379**. Set `REDIS_URL=redis://localhost:6379/0` (native) or `redis://redis:6379/0` (from backend container) so new queued runs `LPUSH` and the worker `BRPOP`s for lower latency. The compose file passes **`REDIS_URL`** and **`OPENWEBUI_SYNTHETIC_RUNS`** from your `.env` into **backend** and **worker**. Shortcut: **`START_WITH_REDIS=1 ./start.sh docker`** enables the `redis` profile and defaults `REDIS_URL=redis://redis:6379/0`.
 
 ## CI
 
