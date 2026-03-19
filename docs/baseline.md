@@ -30,11 +30,14 @@ input (chat | workflow)
 | Location | Role |
 |----------|------|
 | [`backend/main.py`](../backend/main.py) | FastAPI app, CORS, `lifespan`: `init_db()`, `requeue_interrupted_runs()`, starts **async worker** `runtime_worker_loop` |
-| [`core/runtime/worker.py`](../core/runtime/worker.py) | Polls DB for `queued` runs; dispatches `execute_chat_run` / `execute_workflow_run` with timeout |
-| [`core/runtime/execution/chat_run.py`](../core/runtime/execution/chat_run.py) | Chat run body: may call **`dispatcher.run_tool`** and **`provider.generate`** (not only a single `RuntimeEngine.run`) |
+| [`core/runtime/worker.py`](../core/runtime/worker.py) | Polls DB for `queued` runs; **`RuntimeEngine().run(run.id)`** only (with timeout) |
+| [`core/runtime/engine.py`](../core/runtime/engine.py) | **`RuntimeEngine.run(run_id)`** → `execute_chat_run` / `execute_workflow_run` / unknown-kind fail |
+| [`core/runtime/run_manager.py`](../core/runtime/run_manager.py) | `get_run_for_execution(run_id)` (read path for engine) |
+| [`core/runtime/event_emitter.py`](../core/runtime/event_emitter.py) | Stub until Phase 3 single `emit()` |
+| [`core/runtime/execution/chat_run.py`](../core/runtime/execution/chat_run.py) | Chat run body: **`dispatcher.run_tool`**, **`provider.generate`** |
 | [`core/runtime/execution/workflow_run.py`](../core/runtime/execution/workflow_run.py) | Workflow run body |
 | [`core/tools/dispatcher.py`](../core/tools/dispatcher.py) | Tool execution, policies, approvals, idempotency |
-| [`core/runtime/executor.py`](../core/runtime/executor.py) | Re-exports cancel + execution helpers (compat layer) |
+| [`core/runtime/executor.py`](../core/runtime/executor.py) | Re-exports `RuntimeEngine`, cancel, `execute_*` (compat; prefer engine for new code) |
 | [`api/openai_compat/router.py`](../api/openai_compat/router.py) | **`/v1/chat/completions`** → **`provider.generate`** (Open WebUI); **bypasses run queue** |
 
 **Queue:** in-process asyncio worker + DB-backed `runs.status`, not Redis/RQ.

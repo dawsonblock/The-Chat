@@ -24,7 +24,7 @@ This maps the **non-negotiable target** (one loop: input → run → runtime →
 ## Phase checklist
 
 - [x] **Phase 0 — Freeze baseline** — `docs/baseline.md`, branch `operator-one-hardening`
-- [ ] **Phase 1 — Single runtime spine** — Introduce `core/runtime/engine.py` + `run_manager`; route all execution through one method; remove duplicate loops
+- [x] **Phase 1 (initial)** — `core/runtime/engine.py` (`RuntimeEngine.run`), `run_manager.py`, `event_emitter.py` stub; **worker** calls only `RuntimeEngine().run(run.id)`. Chat/workflow bodies unchanged. **Still to do:** ban `execute_*` imports from `api/`, fold `/v1` into runs, rename/merge `executor` re-exports.
 - [ ] **Phase 2 — Unify run model** — Migrate schema toward spec (or document intentional deltas); collapse duplicate tables into events where safe
 - [ ] **Phase 3 — Event system** — One `RunEvent` contract + `emit()` = persist + SSE; retire parallel formats
 - [ ] **Phase 4 — Tool boundary** — `execute()` contract, validation, timeout/retry wrappers; no direct Scrapling/fs/http outside tools
