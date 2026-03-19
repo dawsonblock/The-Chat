@@ -1,5 +1,7 @@
 # Operator One architecture (code-truth summary)
 
+**Hardening:** frozen baseline [`baseline.md`](baseline.md) and phase plan [`HARDENING_ROADMAP.md`](HARDENING_ROADMAP.md) (branch `operator-one-hardening`).
+
 ## Single authorities
 
 | Concern | Authority |
