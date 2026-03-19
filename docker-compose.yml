@@ -1,0 +1,53 @@
+version: "3.9"
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+  backend:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash -lc "pip install -r requirements.txt && uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:///./storage/postgres/operator_one.db
+      SESSION_SECRET: dev-session-secret
+      ARTIFACTS_DIR: ./storage/artifacts/data
+      SERVICE_TOKEN: dev-internal-token
+      OPENAI_PROXY_API_KEY: dev-openai-proxy-key
+      LLM_BACKEND: openai_compatible
+      LOCAL_LLM_BASE_URL: http://ollama:11434/v1
+      LOCAL_LLM_MODEL: llama3.2
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8080,http://127.0.0.1:8080
+    depends_on:
+      - ollama
+  web:
+    image: node:20
+    working_dir: /app/product/web
+    volumes:
+      - ./:/app
+    command: bash -lc "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE: http://localhost:8000
+      VITE_OPEN_WEBUI_URL: http://localhost:8080
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "8080:8080"
+    environment:
+      WEBUI_SECRET_KEY: dev-webui-secret-change-me
+      ENABLE_OLLAMA_API: "false"
+      OPENAI_API_BASE_URL: http://backend:8000/v1
+      OPENAI_API_KEY: dev-openai-proxy-key
+    depends_on:
+      - backend
+
+volumes:
+  ollama_data:

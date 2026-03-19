@@ -1,0 +1,8 @@
+{
+  "name": "operator-one-root",
+  "private": true,
+  "scripts": {
+    "web:dev": "npm --prefix product/web run dev",
+    "web:build": "npm --prefix product/web run build"
+  }
+}

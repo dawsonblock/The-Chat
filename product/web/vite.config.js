@@ -1,0 +1,19 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    fs: {
+      allow: ['..', '../..']
+    }
+  },
+  resolve: {
+    alias: {
+      '@widgets': path.resolve(__dirname, '../widgets'),
+      '@workflow': path.resolve(__dirname, '../workflow')
+    }
+  }
+})

@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../Scrapling-main"
+		},
+		{
+			"path": "../tool-ui-main"
+		},
+		{
+			"path": "../flowgram.ai-main"
+		},
+		{
+			"path": "../open-webui-main"
+		},
+		{
+			"path": "../agno-main"
+		}
+	],
+	"settings": {}
+}
