@@ -29,6 +29,11 @@ class ToolDefinition:
     risk = 'low'
     max_retries = 0
     retry_delay_seconds = 0.5
+    timeout_seconds: float = 180.0
+
+    def validate_args(self, args: dict[str, Any]) -> str | None:
+        """Return a human-readable error message if ``args`` are invalid, else ``None``."""
+        return None
 
     async def run(self, ctx: ToolContext, args: dict[str, Any]) -> ToolExecutionResult:
         raise NotImplementedError

@@ -13,7 +13,10 @@ export function ToolResultCard({ result }) {
     <div className="result-card">
       <div className="row space-between wrap-mobile">
         <strong>{result?.ok ? 'Tool result' : 'Tool error'}</strong>
-        <span className={result?.ok ? 'muted' : ''}>{result?.ok ? 'ok' : result?.error?.code || 'error'}</span>
+        <span className={result?.ok ? 'muted' : ''}>
+          {result?.ok ? 'ok' : result?.error?.code || 'error'}
+          {typeof result?.durationMs === 'number' ? ` · ${result.durationMs}ms` : ''}
+        </span>
       </div>
       {result?.ok ? (
         <>

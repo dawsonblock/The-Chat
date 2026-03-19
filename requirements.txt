@@ -6,3 +6,4 @@ beautifulsoup4>=4.14
 python-multipart>=0.0.20
 pydantic-settings>=2.11
 bleach>=6.2
+redis>=5.0.0

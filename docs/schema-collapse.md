@@ -26,7 +26,14 @@ WHERE NOT EXISTS (
 );
 ```
 
-Use application-level backfill code in [`storage/migrate.py`](../storage/migrate.py) when you are ready; keep migrations idempotent.
+Run idempotent backfill (after backup):
+
+```bash
+BACKFILL_RUN_EVENTS=1 ./scripts/migrate.sh
+# or: python -c "from storage.migrate import backfill_run_events_from_tool_calls; print(backfill_run_events_from_tool_calls())"
+```
+
+Implementation: [`backfill_run_events_from_tool_calls`](../storage/migrate.py).
 
 ## Postgres
 

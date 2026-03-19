@@ -12,7 +12,7 @@ from core.events.sse.stream import format_sse_event, sse_keepalive
 from core.auth.service import get_current_user
 from core.events.bus import event_bus
 from core.events.store import event_store
-from core.runtime.executor import cancel_run
+from core.runtime.control import cancel_run
 from core.runtime.service import run_service
 from core.workflows.service import workflow_service
 from storage.db import SessionLocal

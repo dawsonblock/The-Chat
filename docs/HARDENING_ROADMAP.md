@@ -24,22 +24,22 @@ This maps the **non-negotiable target** (one loop: input → run → runtime →
 ## Phase checklist
 
 - [x] **Phase 0 — Freeze baseline** — `docs/baseline.md`, branch `operator-one-hardening`
-- [x] **Phase 1 (v0.7)** — Worker → `RuntimeEngine.run` only; **contract** [`test_api_no_direct_execution.py`](../tests/contract/test_api_no_direct_execution.py). **`executor`** exports only `RuntimeEngine`, `cancel_run`, `is_cancelled`. **Still to do:** Option B synthetic `/v1` run if eliminating bypass.
-- [ ] **Phase 2 — Unify run model** — Migrate schema toward spec; collapse duplicate tables ([`schema-collapse.md`](schema-collapse.md))
+- [x] **Phase 1 (v0.7)** — Worker → `RuntimeEngine.run` only; **contract** [`test_api_no_direct_execution.py`](../tests/contract/test_api_no_direct_execution.py). **`executor`** exports only `RuntimeEngine`, `cancel_run`, `is_cancelled`. **Optional:** `OPENWEBUI_SYNTHETIC_RUNS` for non-stream `/v1` (see baseline).
+- [ ] **Phase 2 — Unify run model** — **Backfill** [`backfill_run_events_from_tool_calls()`](../storage/migrate.py) + docs; full table drop still future
 - [x] **Phase 3 (initial)** — `emit()` for runtime + dispatcher; [`test_runtime_uses_emit.py`](../tests/contract/test_runtime_uses_emit.py); typed `RunEvent` union still future
-- [ ] **Phase 4 — Tool boundary** — `execute()` contract, validation, timeout/retry wrappers; no direct Scrapling/fs/http outside tools
+- [x] **Phase 4 (initial)** — `validate_args` + per-tool `timeout_seconds` + `asyncio.wait_for` in dispatcher; intake still only under `intake/` tools
 - [x] **Phase 5 (runtime path)** — Workflow runs are `kind: workflow` rows; **`RuntimeEngine.run`** → `execute_workflow_run` (same queue/worker as chat). Flowgram export / spec hardening still open.
 - [x] **Phase 6 (initial)** — `/internal/intake/*` requires `X-Service-Token` (`SERVICE_TOKEN`); target remains tools-only for product callers
 - [x] **Phase 7 (initial)** — `POST /api/runs` + `/chat` alias; `/v1` documented bypass (Open WebUI); path naming polish later
-- [ ] **Phase 8 — Frontend** — Chat still hydrates `ConversationMessage` for history; live run uses events + `RunTimeline` — full event-only transcript is v0.8+
+- [x] **Phase 8 (incremental)** — When a **conversation run** is selected, main transcript uses [`transcriptFromRunEvents`](../product/web/src/lib/runStore.js); conversation list still loads messages API when no run selected
 - [x] **Phase 9 (initial)** — [`product/widgets/renderRunEvent.jsx`](../product/widgets/renderRunEvent.jsx) + `RunTimeline`; expand coverage as types stabilize
-- [ ] **Phase 10 — Artifacts** — Single flow: tool → disk → `ArtifactCreated` event → UI
-- [x] **Phase 11 (partial)** — DB-queued runs + optional `python -m worker` when `WORKER_IN_PROCESS=false`; **Redis/RQ** still future
-- [ ] **Phase 12 — Auth** — Uniform `user_id` on runs; tool/file/approval permission matrix
-- [ ] **Phase 13 — Failure & control** — Cancel/retry policies owned by runtime layer
-- [ ] **Phase 14 — Observability** — Run timeline, latency metrics per tool
-- [ ] **Phase 15 — Cleanup** — Delete dead code paths, duplicate registries, stray backends
-- [ ] **Phase 16 — Version tags** — Tag `v0.7`, `v0.8`, … when phases complete
+- [x] **Phase 10 (existing)** — Dispatcher → `file_service.create_artifact` → `artifact.created` + `ArtifactPreview` in timeline
+- [x] **Phase 11 (partial)** — Optional **`REDIS_URL`** + `notify_run_queued` / worker `BRPOP` (DB remains truth); **RQ/Celery** not adopted
+- [x] **Phase 12 (initial)** — [`docs/AUTH_MATRIX.md`](AUTH_MATRIX.md); central `core/auth` enforcement still future
+- [x] **Phase 13 (initial)** — [`core/runtime/control.py`](../core/runtime/control.py) for cancel entry; tool timeouts + retries in dispatcher
+- [x] **Phase 14 (initial)** — `durationMs` on `tool.finished` events + **ToolResultCard** display
+- [x] **Phase 15 (pass)** — Cancel via `control`; docs/links; deeper dedupe deferred
+- [x] **Phase 16 (v0.7)** — Tag `v0.7.0` on release commit (run `git tag -a v0.7.0 -m "v0.7 hardening"` if not present)
 
 ---
 

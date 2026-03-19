@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import time
 from datetime import datetime
 from uuid import uuid4
 
@@ -57,6 +58,41 @@ class ToolDispatcher:
             )
             db.commit()
         await emit(run_id, build_event('tool.started', runId=run_id, tool={'id': tool_call_id, 'toolName': name, 'args': args, 'status': 'running'}))
+
+        verr = tool.validate_args(args)
+        if verr:
+            fc, retryable = classify_tool_failure('validation_error')
+            result = ToolExecutionResult(
+                ok=False,
+                error_code='validation_error',
+                error_message=verr,
+                failure_class=fc,
+                retryable=retryable,
+            )
+            with SessionLocal() as db:
+                row = db.query(ToolCall).filter(ToolCall.id == tool_call_id).first()
+                row.status = 'failed'
+                row.finished_at = datetime.utcnow()
+                db.merge(
+                    ToolResult(
+                        tool_call_id=tool_call_id,
+                        ok=False,
+                        error_code=result.error_code,
+                        error_message=result.error_message,
+                        failure_class=fc,
+                        retryable=retryable,
+                    )
+                )
+                db.commit()
+            await emit(
+                run_id,
+                build_event(
+                    'tool.finished',
+                    runId=run_id,
+                    result={'toolCallId': tool_call_id, 'ok': False, 'error': {'code': result.error_code, 'message': result.error_message}, 'artifacts': []},
+                ),
+            )
+            return result
 
         if tool_requires_approval(name):
             run_service.set_status(run_id, 'waiting_approval')
@@ -118,6 +154,7 @@ class ToolDispatcher:
 
         max_retries = int(policy['max_retries'] or 0)
         delay = float(policy['retry_delay_seconds'] or 0.5)
+        wall0 = time.monotonic()
         last_result: ToolExecutionResult | None = None
         for attempt in range(max_retries + 1):
             with SessionLocal() as db:
@@ -126,8 +163,18 @@ class ToolDispatcher:
                     row.attempt_count = attempt + 1
                     db.commit()
             ctx = ToolContext(run_id=run_id, user_id=user_id, conversation_id=conversation_id)
+            timeout_s = float(getattr(tool, 'timeout_seconds', 180) or 180)
             try:
-                last_result = await tool.run(ctx, args)
+                last_result = await asyncio.wait_for(tool.run(ctx, args), timeout=timeout_s)
+            except asyncio.TimeoutError:
+                fc, retryable = classify_tool_failure('timeout')
+                last_result = ToolExecutionResult(
+                    ok=False,
+                    error_code='timeout',
+                    error_message=f'Tool exceeded {timeout_s:.0f}s timeout.',
+                    failure_class=fc,
+                    retryable=retryable,
+                )
             except Exception as exc:
                 fc, retryable = classify_tool_failure(None, exc)
                 last_result = ToolExecutionResult(ok=False, error_code='tool_exception', error_message=str(exc), failure_class=fc, retryable=retryable)
@@ -183,6 +230,7 @@ class ToolDispatcher:
             'output': result.output if result.ok else None,
             'error': None if result.ok else {'code': result.error_code, 'message': result.error_message},
             'artifacts': artifact_refs,
+            'durationMs': int((time.monotonic() - wall0) * 1000),
         }
         await emit(run_id, build_event('tool.finished', runId=run_id, result=payload))
         result.artifacts = artifact_refs

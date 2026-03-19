@@ -12,11 +12,14 @@ class CrawlSiteTool(ToolDefinition):
     requires_approval = True
     risk = 'medium'
     max_retries = 1
+    timeout_seconds = 300.0
+
+    def validate_args(self, args: dict) -> str | None:
+        url = (args.get('url') or '').strip()
+        return None if url else 'No URL was provided.'
 
     async def run(self, ctx: ToolContext, args: dict) -> ToolExecutionResult:
         url = (args.get('url') or '').strip()
-        if not url:
-            return ToolExecutionResult(ok=False, error_code='missing_url', error_message='No URL was provided.')
         result = await crawl_site(url, max_depth=int(args.get('max_depth', 1)), max_pages=int(args.get('max_pages', 5)))
         artifacts = [
             {

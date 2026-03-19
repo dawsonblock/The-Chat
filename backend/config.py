@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     run_timeout_seconds: float = 600.0
     worker_poll_interval_seconds: float = 0.35
     worker_in_process: bool = True
+    redis_url: str = ''
+    openwebui_synthetic_runs: bool = False
+    openwebui_run_user_id: str = 'openwebui-proxy'
     intake_allow_private_hosts: bool = False
     intake_allow_domains: str = ''
     intake_deny_domains: str = 'localhost,127.0.0.1,::1,0.0.0.0'

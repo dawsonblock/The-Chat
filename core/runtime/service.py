@@ -5,6 +5,7 @@ from typing import Any
 
 from core.events.emitter import emit
 from core.events.schema import build_event
+from core.runtime.run_queue_signal import notify_run_queued
 from core.runtime.state.status import RUN_STATUSES
 from storage.db import SessionLocal
 from storage.models import Conversation, ConversationMessage, Run, RunEvent
@@ -23,6 +24,7 @@ class RunService:
                 db.add(ConversationMessage(conversation_id=conversation_id, role='user', content=input_payload['message'], run_id=row.id))
             db.commit()
             db.refresh(row)
+            notify_run_queued(row.id)
             return row
 
     def get_run(self, run_id: str) -> Run | None:
@@ -90,6 +92,22 @@ class RunService:
             if row:
                 row.cancel_requested = False
                 db.commit()
+
+    def try_claim_queued_run(self, run_id: str) -> Run | None:
+        with SessionLocal() as db:
+            row = (
+                db.query(Run)
+                .filter(Run.id == run_id, Run.status == 'queued', Run.cancel_requested.is_(False))
+                .first()
+            )
+            if not row:
+                return None
+            row.status = 'running'
+            if row.started_at is None:
+                row.started_at = datetime.utcnow()
+            db.commit()
+            db.refresh(row)
+            return row
 
     def claim_next_queued_run(self) -> Run | None:
         with SessionLocal() as db:

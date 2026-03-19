@@ -103,6 +103,7 @@ GitHub Actions: `.github/workflows/ci.yml` (Python 3.12 + Node 22).
 |-----|--------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System map and deep links |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Env, Docker, Open WebUI, Ollama, lockfile |
+| [docs/AUTH_MATRIX.md](docs/AUTH_MATRIX.md) | Auth surfaces and permission notes |
 | [docs/](docs/) | Run model, workflows, tools, intake security, import audit |
 
 ---

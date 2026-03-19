@@ -10,11 +10,14 @@ class ExtractPageTool(ToolDefinition):
     description = 'Fetch and normalize a public web page.'
     max_retries = 2
     retry_delay_seconds = 0.75
+    timeout_seconds = 120.0
+
+    def validate_args(self, args: dict) -> str | None:
+        url = (args.get('url') or '').strip()
+        return None if url else 'No URL was provided.'
 
     async def run(self, ctx: ToolContext, args: dict) -> ToolExecutionResult:
         url = (args.get('url') or '').strip()
-        if not url:
-            return ToolExecutionResult(ok=False, error_code='missing_url', error_message='No URL was provided.')
         try:
             doc = await extract_page(url, render_js=bool(args.get('render_js', False)), include_html=True)
         except SSRFBlocked as exc:

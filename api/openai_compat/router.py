@@ -2,11 +2,14 @@ from __future__ import annotations
 
 """OpenAI-compatible surface for external UIs (e.g. Open WebUI).
 
-**Policy (Option A):** This is an explicit *compatibility bypass* — it calls ``provider.generate``
-directly and does **not** create a ``Run`` or emit ``run_events``. Product chat must use
-``POST /api/runs``. See ``docs/baseline.md`` (*Open WebUI /v1 policy*).
+**Default (Option A):** calls ``provider.generate`` directly (no ``Run`` / ``run_events``).
+
+**Optional (Option B):** set ``OPENWEBUI_SYNTHETIC_RUNS=true`` for **non-streaming** requests only:
+creates a **chat** run and polls until the worker finishes so ``run_events`` reflect the turn.
+Streaming requests still use the provider shortcut. See ``docs/baseline.md``.
 """
 
+import asyncio
 import json
 import time
 import uuid
@@ -18,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.config import settings
 from core.runtime.provider import provider
+from core.runtime.service import run_service
 
 router = APIRouter(prefix='/v1', tags=['openai-compat'])
 
@@ -67,6 +71,16 @@ def _flatten_message_content(content: str | list[Any] | None) -> str:
     return '\n'.join(parts)
 
 
+async def _wait_run_terminal(run_id: str):
+    deadline = time.monotonic() + float(settings.run_timeout_seconds) + 60.0
+    while time.monotonic() < deadline:
+        row = run_service.get_run(run_id)
+        if row and row.status in {'succeeded', 'failed', 'cancelled'}:
+            return row
+        await asyncio.sleep(0.2)
+    return run_service.get_run(run_id)
+
+
 def _prompt_from_messages(messages: list[ChatMessage]) -> str:
     lines: list[str] = []
     for m in messages:
@@ -103,7 +117,21 @@ async def chat_completions(
     if not prompt:
         raise HTTPException(status_code=400, detail='No message content provided.')
 
-    reply = await provider.generate(prompt)
+    reply: str
+    if settings.openwebui_synthetic_runs and not body.stream:
+        run = run_service.create_run(
+            user_id=settings.openwebui_run_user_id,
+            conversation_id=None,
+            kind='chat',
+            input_payload={'message': prompt, 'attachments': []},
+        )
+        final = await _wait_run_terminal(run.id)
+        if not final or final.status != 'succeeded':
+            reply = (final.error_message if final else 'Run did not complete.') or 'Run failed.'
+        else:
+            reply = (final.output_text or '').strip() or '(empty response)'
+    else:
+        reply = await provider.generate(prompt)
 
     if body.stream:
         cid = f'chatcmpl-{uuid.uuid4().hex[:12]}'

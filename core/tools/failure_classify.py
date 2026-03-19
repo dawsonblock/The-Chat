@@ -3,7 +3,7 @@ from __future__ import annotations
 
 def classify_tool_failure(error_code: str | None, exc: BaseException | None = None) -> tuple[str, bool]:
     code = (error_code or '').lower()
-    if code in {'approval_denied', 'missing_url', 'no_text'}:
+    if code in {'approval_denied', 'missing_url', 'no_text', 'validation_error'}:
         return 'user_error', False
     if code in {'timeout', 'connection'}:
         return 'retryable', True

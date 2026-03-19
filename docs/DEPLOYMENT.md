@@ -27,13 +27,18 @@ Stale SQLite files from an older build may miss `tool_policies` or new columns u
 | `INTAKE_ALLOW_PRIVATE_HOSTS` | `true` only in trusted dev networks |
 | `INTAKE_ALLOW_DOMAINS` | Optional allow-list of hosts |
 | `INTAKE_DENY_DOMAINS` | Deny-list (default blocks obvious local names) |
+| `REDIS_URL` | Optional, e.g. `redis://localhost:6379/0` — `LPUSH` on new queued runs; worker uses `BRPOP` for faster wake-up (still uses DB as source of truth). |
+| `OPENWEBUI_SYNTHETIC_RUNS` | `true`: non-stream `/v1/chat/completions` creates a real **chat** run and waits for the worker (Option B). |
+| `OPENWEBUI_RUN_USER_ID` | User id string stored on synthetic Open WebUI runs (default `openwebui-proxy`). |
+
+**Auth / permissions overview:** [`docs/AUTH_MATRIX.md`](AUTH_MATRIX.md).
 
 ## Open WebUI dashboard
 
 Compose includes an `open-webui` service on port **8080**. It uses Operator One as an OpenAI-compatible backend:
 
 - Backend routes: `GET /v1/models`, `POST /v1/chat/completions` (Bearer `OPENAI_PROXY_API_KEY`).
-- **`/v1/chat/completions` is a documented compatibility bypass:** it calls the LLM directly and does **not** create a `Run` or `run_events`. First-class runs use **`POST /api/runs`** (see [`docs/baseline.md`](baseline.md)).
+- **Default:** `/v1/chat/completions` calls the LLM directly (no `Run`). **`OPENWEBUI_SYNTHETIC_RUNS=true`** uses a real run for **non-stream** requests only (needs a worker). See [`docs/baseline.md`](baseline.md).
 - Match `OPENAI_API_KEY` in the Open WebUI container to `OPENAI_PROXY_API_KEY` on the backend (see `docker-compose.yml`).
 - Operator shell: **Dashboard** links to Open WebUI; override the URL with `VITE_OPEN_WEBUI_URL` for the web dev server.
 
@@ -54,6 +59,8 @@ Without Docker, install [Ollama](https://ollama.com), run `ollama serve`, set `L
 Use the repository `docker-compose.yml` as a starting point; verify `DATABASE_URL` and volume mounts for `artifacts_dir` match production storage. `docker compose up` starts backend, web, and Open WebUI.
 
 **Separate worker (optional):** set `WORKER_IN_PROCESS=false` on the API service and run the `worker` service (Compose profile **`worker`**) so only one process polls the run queue: `docker compose --profile worker up`. Ensure both services share the same `DATABASE_URL` and `SERVICE_TOKEN`.
+
+**Redis wake-up (optional):** `docker compose --profile redis up` starts Redis on **6379**. Set `REDIS_URL=redis://localhost:6379/0` (native) or `redis://redis:6379/0` (from backend container) so new queued runs `LPUSH` and the worker `BRPOP`s for lower latency.
 
 ## CI
 

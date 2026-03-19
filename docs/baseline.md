@@ -102,9 +102,10 @@ input (chat | workflow)
 | POST | `/v1/chat/completions` |
 | POST | `/v1/embeddings` | 501 |
 
-#### Open WebUI `/v1` policy (**Option A — documented bypass**)
+#### Open WebUI `/v1` policy
 
-`/v1/chat/completions` calls **`provider.generate`** only. It does **not** enqueue a `Run` or write `run_events`. Use **`POST /api/runs`** for first-class runs and SSE. To align Open WebUI with runs (Option B), a future change would enqueue a synthetic chat run and block or poll until completion.
+- **Default (Option A):** `/v1/chat/completions` calls **`provider.generate`** only (no `Run` / `run_events`).
+- **Optional (Option B):** set env **`OPENWEBUI_SYNTHETIC_RUNS=true`** — for **non-streaming** completions only, the API creates a **chat** `Run` and polls until the worker finishes so events are written. Requires a running worker (`WORKER_IN_PROCESS` or `python -m worker`). **Streaming** requests still use the provider shortcut.
 
 ---
 

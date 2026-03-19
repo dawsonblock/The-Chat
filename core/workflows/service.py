@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from core.runtime.run_queue_signal import notify_run_queued
 from core.runtime.service import run_service
 from storage.db import SessionLocal
 from storage.models import Run, Workflow, WorkflowRun, WorkflowVersion
@@ -33,6 +34,7 @@ class WorkflowService:
             db.refresh(run)
             db.add(WorkflowRun(workflow_version_id=workflow_version_id, run_id=run.id, inputs=inputs))
             db.commit()
+            notify_run_queued(run.id)
             return run
 
 

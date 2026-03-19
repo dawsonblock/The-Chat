@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { api, API_BASE, eventStream, storage } from '../api'
-import { maxEventSeq, normalizeRunBundle } from '../lib/runStore'
+import { maxEventSeq, normalizeRunBundle, transcriptFromRunEvents } from '../lib/runStore'
 import { RunTimeline } from '@widgets/RunTimeline'
 
 export function ChatPage({ user: _user }) {
@@ -16,6 +16,7 @@ export function ChatPage({ user: _user }) {
   const [attachedFiles, setAttachedFiles] = useState([])
   const [uploading, setUploading] = useState(false)
   const [selectedRunId, setSelectedRunId] = useState(null)
+  const [selectedRunMeta, setSelectedRunMeta] = useState(null)
   const streamRef = useRef(null)
 
   const loadConversations = async () => {
@@ -47,6 +48,7 @@ export function ChatPage({ user: _user }) {
     api(`/api/runs/${selectedRunId}/bundle`).then((bundle) => {
       const norm = normalizeRunBundle(bundle)
       setRunId(selectedRunId)
+      setSelectedRunMeta(norm.run || null)
       setRunEvents(norm.events || [])
       const st = norm.run?.status
       const lastSeq = maxEventSeq(norm.events)
@@ -133,6 +135,7 @@ export function ChatPage({ user: _user }) {
     setRunEvents([])
     setConversationRuns([])
     setSelectedRunId(null)
+    setSelectedRunMeta(null)
   }
 
   const uploadFile = async (event) => {
@@ -161,6 +164,11 @@ export function ChatPage({ user: _user }) {
 
   const removeAttachment = (fileId) => setAttachedFiles((current) => current.filter((file) => file.id !== fileId))
 
+  const displayMessages =
+    selectedRunId && selectedRunMeta
+      ? transcriptFromRunEvents(selectedRunMeta, runEvents)
+      : messages
+
   return (
     <div className="chat-layout">
       <div className="panel-grid">
@@ -188,7 +196,7 @@ export function ChatPage({ user: _user }) {
       </div>
       <div className="chat-column">
         <div className="messages">
-          {messages.map((message) => (
+          {displayMessages.map((message) => (
             <div key={message.id} className={`message ${message.role}`}>
               <div>{message.content}</div>
             </div>
