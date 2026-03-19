@@ -7,7 +7,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from core.approvals.service import approval_service
-from core.events.bus import event_bus
+from core.events.emitter import emit
 from core.events.schema import build_event
 from core.files.service import file_service
 from core.runtime.service import run_service
@@ -56,7 +56,7 @@ class ToolDispatcher:
                 )
             )
             db.commit()
-        await event_bus.publish(run_id, build_event('tool.started', runId=run_id, tool={'id': tool_call_id, 'toolName': name, 'args': args, 'status': 'running'}))
+        await emit(run_id, build_event('tool.started', runId=run_id, tool={'id': tool_call_id, 'toolName': name, 'args': args, 'status': 'running'}))
 
         if tool_requires_approval(name):
             run_service.set_status(run_id, 'waiting_approval')
@@ -73,7 +73,7 @@ class ToolDispatcher:
                 db.add(approval)
                 db.commit()
                 db.refresh(approval)
-            await event_bus.publish(
+            await emit(
                 run_id,
                 build_event(
                     'approval.requested',
@@ -110,7 +110,7 @@ class ToolDispatcher:
                         )
                     )
                     db.commit()
-                await event_bus.publish(
+                await emit(
                     run_id,
                     build_event('tool.finished', runId=run_id, result={'toolCallId': tool_call_id, 'ok': False, 'error': {'code': result.error_code, 'message': result.error_message}, 'artifacts': []}),
                 )
@@ -158,7 +158,7 @@ class ToolDispatcher:
                     metadata=artifact.get('metadata', {}),
                 )
                 artifact_refs.append({k: saved[k] for k in ['id', 'kind', 'name', 'mime_type', 'uri', 'preview', 'metadata']})
-                await event_bus.publish(run_id, build_event('artifact.created', runId=run_id, artifact={k: saved[k] for k in ['id', 'kind', 'name', 'mime_type', 'uri', 'preview', 'metadata']}))
+                await emit(run_id, build_event('artifact.created', runId=run_id, artifact={k: saved[k] for k in ['id', 'kind', 'name', 'mime_type', 'uri', 'preview', 'metadata']}))
 
         with SessionLocal() as db:
             row = db.query(ToolCall).filter(ToolCall.id == tool_call_id).first()
@@ -184,7 +184,7 @@ class ToolDispatcher:
             'error': None if result.ok else {'code': result.error_code, 'message': result.error_message},
             'artifacts': artifact_refs,
         }
-        await event_bus.publish(run_id, build_event('tool.finished', runId=run_id, result=payload))
+        await emit(run_id, build_event('tool.finished', runId=run_id, result=payload))
         result.artifacts = artifact_refs
         return result
 

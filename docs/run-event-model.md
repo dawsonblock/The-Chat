@@ -17,3 +17,8 @@
 
 - **ToolDispatcher** records `ToolCall` + `ToolResult`; failures carry **failure_class** / **retryable**.
 - **Idempotency:** same run + tool + args hash reuses a prior **successful** result.
+- **Emitted events:** dispatcher uses [`core/events/emitter.py`](../core/events/emitter.py) `emit()` so tool / approval / artifact signals are persisted in `run_events` with the same payloads as SSE.
+
+## Canonical timeline merge
+
+See [`docs/schema-collapse.md`](schema-collapse.md) for read order when collapsing duplicate representations.

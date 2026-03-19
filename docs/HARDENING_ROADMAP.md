@@ -11,12 +11,12 @@ This maps the **non-negotiable target** (one loop: input → run → runtime →
 
 | Spec expectation | This repo today |
 |------------------|-----------------|
-| Single `RuntimeEngine.run(run_id)` | Worker calls `execute_chat_run` / `execute_workflow_run`; no `engine.py` |
-| `emit()` → persist + stream only | `build_event`, `event_bus`, `event_store`, SSE formatter — multiple touchpoints |
-| POST `/api/runs` only entry | `POST /api/runs/chat`, workflow-specific POST, **`/v1/chat/completions`** |
-| No tool execution from API routes | Internal intake routes exist; OpenAI compat calls `provider` directly |
-| Redis + RQ worker | **In-process** asyncio worker + SQLite/Postgres via SQLAlchemy |
-| Events only in `run_events` | **`tool_calls`**, **`tool_results`**, **`approval_requests`** plus `run_events` |
+| Single `RuntimeEngine.run(run_id)` | **Yes:** [`core/runtime/engine.py`](../core/runtime/engine.py); worker calls only `RuntimeEngine().run` ([`worker.py`](../core/runtime/worker.py)). **Contract:** [`tests/contract/test_api_no_direct_execution.py`](../tests/contract/test_api_no_direct_execution.py). |
+| `emit()` → persist + stream only | **`core/events/emitter.py`** `emit()` → `event_bus.publish` (which persists). Dispatcher migrated to `emit`; other sites may still call `event_bus` directly. |
+| POST `/api/runs` only entry | **`POST /api/runs`** generic create + **`POST /api/runs/chat`** alias; workflow POST; **`/v1/*`** documented compatibility bypass (Open WebUI). |
+| No tool execution from API routes | Internal intake **gated** by `X-Service-Token`; OpenAI compat still calls `provider` (bypass — see baseline). |
+| Redis + RQ worker | **In-process** worker optional; **`python -m worker`** for external process when `WORKER_IN_PROCESS=false`. |
+| Events only in `run_events` | **`tool_calls`**, **`tool_results`**, **`approval_requests`** plus `run_events` — collapse plan in [`docs/schema-collapse.md`](schema-collapse.md). |
 | Postgres JSONB | SQLite default; JSON columns portable to Postgres |
 
 ---

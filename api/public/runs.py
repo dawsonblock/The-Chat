@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -13,10 +14,16 @@ from core.events.bus import event_bus
 from core.events.store import event_store
 from core.runtime.executor import cancel_run
 from core.runtime.service import run_service
+from core.workflows.service import workflow_service
 from storage.db import SessionLocal
 from storage.models import ApprovalRequest, Artifact, Run, RunEvent, ToolCall, ToolResult
 
 router = APIRouter(prefix='/api/runs', tags=['runs'])
+
+
+class CreateRunBody(BaseModel):
+    kind: Literal['chat', 'workflow']
+    input: dict[str, Any]
 
 
 class ChatRunBody(BaseModel):
@@ -50,10 +57,42 @@ def list_runs(user=Depends(get_current_user)):
     ]
 
 
+@router.post('')
+def create_run(body: CreateRunBody, user=Depends(get_current_user)):
+    if body.kind == 'chat':
+        message = (body.input.get('message') or '').strip()
+        conversation_id = body.input.get('conversation_id')
+        attachments = body.input.get('attachments') or []
+        if not isinstance(attachments, list):
+            raise HTTPException(status_code=400, detail='attachments must be a list')
+        run = run_service.create_run(
+            user_id=user.user_id,
+            conversation_id=conversation_id,
+            kind='chat',
+            input_payload={'message': message, 'attachments': attachments},
+        )
+        return {'run_id': run.id, 'status': run.status}
+    if body.kind == 'workflow':
+        wv = body.input.get('workflow_version_id')
+        if not wv:
+            raise HTTPException(status_code=400, detail='workflow run requires input.workflow_version_id')
+        inputs = body.input.get('inputs') or {}
+        if not isinstance(inputs, dict):
+            raise HTTPException(status_code=400, detail='inputs must be an object')
+        run = workflow_service.create_run(user_id=user.user_id, workflow_version_id=str(wv), inputs=inputs)
+        return {'run_id': run.id, 'status': run.status}
+    raise HTTPException(status_code=400, detail='invalid kind')
+
+
 @router.post('/chat')
-async def create_chat_run(body: ChatRunBody, user=Depends(get_current_user)):
-    run = run_service.create_run(user_id=user.user_id, conversation_id=body.conversation_id, kind='chat', input_payload={'message': body.message, 'attachments': body.attachments})
-    return {'run_id': run.id, 'status': run.status}
+def create_chat_run(body: ChatRunBody, user=Depends(get_current_user)):
+    return create_run(
+        CreateRunBody(
+            kind='chat',
+            input={'message': body.message, 'conversation_id': body.conversation_id, 'attachments': body.attachments},
+        ),
+        user,
+    )
 
 
 @router.get('/{run_id}')

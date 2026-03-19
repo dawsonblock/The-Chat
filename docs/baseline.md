@@ -33,7 +33,8 @@ input (chat | workflow)
 | [`core/runtime/worker.py`](../core/runtime/worker.py) | Polls DB for `queued` runs; **`RuntimeEngine().run(run.id)`** only (with timeout) |
 | [`core/runtime/engine.py`](../core/runtime/engine.py) | **`RuntimeEngine.run(run_id)`** → `execute_chat_run` / `execute_workflow_run` / unknown-kind fail |
 | [`core/runtime/run_manager.py`](../core/runtime/run_manager.py) | `get_run_for_execution(run_id)` (read path for engine) |
-| [`core/runtime/event_emitter.py`](../core/runtime/event_emitter.py) | Stub until Phase 3 single `emit()` |
+| [`core/events/emitter.py`](../core/events/emitter.py) | **`emit()`** → persist + SSE (dispatcher uses this) |
+| [`core/runtime/event_emitter.py`](../core/runtime/event_emitter.py) | Re-export of `emit` (compat) |
 | [`core/runtime/execution/chat_run.py`](../core/runtime/execution/chat_run.py) | Chat run body: **`dispatcher.run_tool`**, **`provider.generate`** |
 | [`core/runtime/execution/workflow_run.py`](../core/runtime/execution/workflow_run.py) | Workflow run body |
 | [`core/tools/dispatcher.py`](../core/tools/dispatcher.py) | Tool execution, policies, approvals, idempotency |
@@ -71,7 +72,8 @@ input (chat | workflow)
 | GET | `/api/artifacts` | |
 | GET | `/api/artifacts/{artifact_id}` | |
 | GET | `/api/runs` | |
-| POST | `/api/runs/chat` | Creates **chat** run (`queued`) |
+| POST | `/api/runs` | Generic create: `{ "kind": "chat" \| "workflow", "input": {…} }` |
+| POST | `/api/runs/chat` | **Legacy alias** → same as `kind: chat` |
 | GET | `/api/runs/{run_id}` | |
 | GET | `/api/runs/{run_id}/bundle` | |
 | POST | `/api/runs/{run_id}/approve` | |
@@ -90,7 +92,7 @@ input (chat | workflow)
 
 | Prefix | Purpose |
 |--------|---------|
-| `/internal/intake/*` | `POST extract`, `POST crawl`, `GET crawl/{job_id}`, `POST monitor` |
+| `/internal/intake/*` | `POST extract`, `POST crawl`, `GET crawl/{job_id}`, `POST monitor` — requires header **`X-Service-Token: $SERVICE_TOKEN`** |
 
 ### OpenAI-compatible (external chat UI)
 
@@ -99,6 +101,10 @@ input (chat | workflow)
 | GET | `/v1/models` |
 | POST | `/v1/chat/completions` |
 | POST | `/v1/embeddings` | 501 |
+
+#### Open WebUI `/v1` policy (**Option A — documented bypass**)
+
+`/v1/chat/completions` calls **`provider.generate`** only. It does **not** enqueue a `Run` or write `run_events`. Use **`POST /api/runs`** for first-class runs and SSE. To align Open WebUI with runs (Option B), a future change would enqueue a synthetic chat run and block or poll until completion.
 
 ---
 
@@ -137,10 +143,11 @@ Defined in [`storage/models/runtime.py`](../storage/models/runtime.py) (and rela
 
 ## Event / streaming
 
-- **Persist:** `RunEvent` rows via event pipeline ([`core/events/`](../core/events/))  
-- **In-memory bus:** [`core/events/bus.py`](../core/events/bus.py) for live SSE subscribers  
+- **Persist + fan-out:** [`core/events/emitter.py`](../core/events/emitter.py) **`emit()`** → [`event_bus.publish`](../core/events/bus.py) (which appends to `RunEvent` and notifies SSE queues).  
+- **In-memory bus:** [`core/events/bus.py`](../core/events/bus.py)  
 - **SSE:** [`core/events/sse/stream.py`](../core/events/sse/stream.py), [`api/public/runs.py`](../api/public/runs.py) `GET .../events`  
-- **Schema helpers:** [`core/events/schema.py`](../core/events/schema.py) `build_event(...)` — **not** a single `emit(event: RunEvent)` as in the target doc
+- **Schema helpers:** [`core/events/schema.py`](../core/events/schema.py) `build_event(...)`  
+- **Collapse plan:** [`docs/schema-collapse.md`](schema-collapse.md)
 
 ---
 
@@ -157,11 +164,10 @@ Defined in [`storage/models/runtime.py`](../storage/models/runtime.py) (and rela
 
 ## Known alternative paths (to remove or fold)
 
-1. **`/v1/chat/completions`** — executes LLM **without** creating a `Run` or emitting run events.  
-2. **`/internal/intake/*`** — direct intake HTTP surface (target: internal-only behind tools / service layer).  
-3. **Chat runtime** — `execute_chat_run` coordinates **dispatcher + provider** directly; not a single `RuntimeEngine.run(run_id)` entry.  
-4. **Dual representation** — `tool_calls` / `tool_results` **and** `run_events` for overlapping information.  
-5. **Conversations** — separate model from “everything is a run” (may remain as index over runs).  
+1. **`/v1/chat/completions`** — **documented compatibility bypass** (Option A); see above.  
+2. **`/internal/intake/*`** — still direct HTTP, now **gated** by `X-Service-Token`; target is tools-only surface for non-admin callers.  
+3. **Dual representation** — `tool_calls` / `tool_results` **and** `run_events`; see [`schema-collapse.md`](schema-collapse.md).  
+4. **Conversations** — separate model from “everything is a run” (may remain as index over runs).  
 
 ---
 

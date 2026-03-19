@@ -10,5 +10,5 @@ def test_openapi_includes_core_public_paths():
         r = client.get('/openapi.json')
         assert r.status_code == 200
         paths = set(r.json().get('paths', {}))
-    for required in ('/api/health', '/api/ready', '/api/runs/chat', '/internal/intake/extract'):
+    for required in ('/api/health', '/api/ready', '/api/runs', '/api/runs/chat', '/internal/intake/extract'):
         assert required in paths, f'missing {required}'

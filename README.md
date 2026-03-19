@@ -19,7 +19,7 @@ Repository: **[github.com/dawsonblock/The-Chat](https://github.com/dawsonblock/T
 | **Intake** | SSRF-aware fetch, allow/deny hosts, dedupe, safe HTML previews |
 | **UI** | React + Vite light shell: Chat, Runs, Workflows, Artifacts, Dashboard, Settings |
 | **Local AI** | Heuristic fallback, or **Ollama** / any OpenAI-compatible server via env |
-| **Open WebUI** | Docker Compose service + `/v1` proxy on the API for external chat UI |
+| **Open WebUI** | Docker Compose service + `/v1` proxy (documented bypass; app chat uses `POST /api/runs`) |
 
 ---
 
@@ -68,6 +68,8 @@ Copy [`.env.example`](.env.example) to `.env` and adjust. Important keys:
 | `DATABASE_URL` | SQLAlchemy URL (default SQLite under `storage/`) |
 | `LLM_BACKEND` | `heuristic` or `openai_compatible` (+ `LOCAL_LLM_*` for Ollama/LM Studio) |
 | `OPENAI_PROXY_API_KEY` | Bearer token for `/v1/*` (Open WebUI must match) |
+| `SERVICE_TOKEN` | Header `X-Service-Token` for `/internal/intake/*` |
+| `WORKER_IN_PROCESS` | `true` = worker inside API; `false` + `python -m worker` for split process |
 | `CORS_ORIGINS` | Allowed browser origins |
 
 Full tables: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.

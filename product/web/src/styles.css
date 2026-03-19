@@ -272,8 +272,9 @@ textarea {
 
 .chat-column {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
   gap: 14px;
+  align-content: start;
 }
 
 .messages {

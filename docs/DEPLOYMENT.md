@@ -16,6 +16,8 @@ Stale SQLite files from an older build may miss `tool_policies` or new columns u
 | `DATABASE_URL` | SQLAlchemy URL (default SQLite file under `storage/`) |
 | `JSON_LOGS` | `true` for JSON log lines |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
+| `SERVICE_TOKEN` | Shared secret; required as header **`X-Service-Token`** on `/internal/intake/*` |
+| `WORKER_IN_PROCESS` | `true` (default): run `runtime_worker_loop` inside the API process. `false`: start a separate **`python -m worker`** process (same `DATABASE_URL` / env). |
 | `OPENAI_PROXY_API_KEY` | Bearer token for `/v1/*` OpenAI-compatible API (Open WebUI) |
 | `LLM_BACKEND` | `heuristic` (default) or `openai_compatible` / `ollama` / `local` for a real model |
 | `LOCAL_LLM_BASE_URL` | OpenAI-compatible root, e.g. `http://127.0.0.1:11434/v1` (Ollama) |
@@ -31,6 +33,7 @@ Stale SQLite files from an older build may miss `tool_policies` or new columns u
 Compose includes an `open-webui` service on port **8080**. It uses Operator One as an OpenAI-compatible backend:
 
 - Backend routes: `GET /v1/models`, `POST /v1/chat/completions` (Bearer `OPENAI_PROXY_API_KEY`).
+- **`/v1/chat/completions` is a documented compatibility bypass:** it calls the LLM directly and does **not** create a `Run` or `run_events`. First-class runs use **`POST /api/runs`** (see [`docs/baseline.md`](baseline.md)).
 - Match `OPENAI_API_KEY` in the Open WebUI container to `OPENAI_PROXY_API_KEY` on the backend (see `docker-compose.yml`).
 - Operator shell: **Dashboard** links to Open WebUI; override the URL with `VITE_OPEN_WEBUI_URL` for the web dev server.
 
@@ -49,6 +52,8 @@ Without Docker, install [Ollama](https://ollama.com), run `ollama serve`, set `L
 ## Docker / Compose
 
 Use the repository `docker-compose.yml` as a starting point; verify `DATABASE_URL` and volume mounts for `artifacts_dir` match production storage. `docker compose up` starts backend, web, and Open WebUI.
+
+**Separate worker (optional):** set `WORKER_IN_PROCESS=false` on the API service and run the `worker` service (Compose profile **`worker`**) so only one process polls the run queue: `docker compose --profile worker up`. Ensure both services share the same `DATABASE_URL` and `SERVICE_TOKEN`.
 
 ## CI
 

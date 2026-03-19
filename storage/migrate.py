@@ -47,3 +47,12 @@ def ensure_schema() -> None:
                 conn.execute(text('ALTER TABLE tool_results ADD COLUMN failure_class VARCHAR'))
             if 'retryable' not in results:
                 conn.execute(text('ALTER TABLE tool_results ADD COLUMN retryable BOOLEAN'))
+
+
+def backfill_run_events_from_tool_calls_placeholder() -> None:
+    """Reserved for incremental backfill (see ``docs/schema-collapse.md``).
+
+    Intentionally a no-op: run_events are already written on the hot path via ``emit()`` /
+    ``event_bus.publish``. Historical gap-fill should be scripted with explicit DBA review.
+    """
+    return

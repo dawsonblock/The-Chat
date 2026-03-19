@@ -25,14 +25,17 @@ async def lifespan(app: FastAPI):
     init_db()
     requeue_interrupted_runs()
     stop = asyncio.Event()
-    worker_task = asyncio.create_task(runtime_worker_loop(stop))
+    worker_task = None
+    if settings.worker_in_process:
+        worker_task = asyncio.create_task(runtime_worker_loop(stop))
     try:
         yield
     finally:
         stop.set()
-        worker_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await worker_task
+        if worker_task is not None:
+            worker_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await worker_task
 
 
 app = FastAPI(title='Operator One', version='0.7.0', lifespan=lifespan)

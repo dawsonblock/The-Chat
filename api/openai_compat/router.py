@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""OpenAI-compatible surface for external UIs (e.g. Open WebUI).
+
+**Policy (Option A):** This is an explicit *compatibility bypass* — it calls ``provider.generate``
+directly and does **not** create a ``Run`` or emit ``run_events``. Product chat must use
+``POST /api/runs``. See ``docs/baseline.md`` (*Open WebUI /v1 policy*).
+"""
+
 import json
 import time
 import uuid

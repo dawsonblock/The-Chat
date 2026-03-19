@@ -3,7 +3,7 @@ import { api, API_BASE, eventStream, storage } from '../api'
 import { maxEventSeq, normalizeRunBundle } from '../lib/runStore'
 import { RunTimeline } from '@widgets/RunTimeline'
 
-export function ChatPage() {
+export function ChatPage({ user: _user }) {
   const [conversations, setConversations] = useState([])
   const [currentConversationId, setCurrentConversationId] = useState(null)
   const [messages, setMessages] = useState([])
@@ -105,7 +105,13 @@ export function ChatPage() {
     setDraft('')
     setAttachedFiles([])
     try {
-      const created = await api('/api/runs/chat', { method: 'POST', body: JSON.stringify({ message: text, conversation_id: conversationId, attachments }) })
+      const created = await api('/api/runs', {
+        method: 'POST',
+        body: JSON.stringify({
+          kind: 'chat',
+          input: { message: text, conversation_id: conversationId, attachments },
+        }),
+      })
       startRunStream(created.run_id)
     } catch (err) {
       setError(err.message)
@@ -185,11 +191,17 @@ export function ChatPage() {
           {messages.map((message) => (
             <div key={message.id} className={`message ${message.role}`}>
               <div>{message.content}</div>
-              {message.run_id === runId && runEvents.length > 0 && message.role === 'assistant' && <RunTimeline events={runEvents} onApprovalDecision={onApprovalDecision} />}
             </div>
           ))}
           {error && <div className="approval-card" style={{ color: 'var(--bad)' }}>{error}</div>}
         </div>
+        {selectedRunId && (
+          <div className="panel compact-panel">
+            <strong className="small">Run activity</strong>
+            <p className="muted small" style={{ margin: '4px 0 8px' }}>Tool calls, results, and approvals from run events.</p>
+            <RunTimeline events={runEvents} onApprovalDecision={onApprovalDecision} />
+          </div>
+        )}
         <div className="composer">
           <textarea placeholder="Paste a URL, upload a text file, or describe the task. Example: extract this page and summarize it https://example.com" value={draft} onChange={(e) => setDraft(e.target.value)} />
           <div className="row wrap-mobile composer-tools">

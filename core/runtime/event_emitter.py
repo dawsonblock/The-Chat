@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-"""Placeholder for a single `emit(event)` API (Phase 3).
+"""Deprecated alias — use ``core.events.emitter.emit``."""
 
-Today: use ``core.events.schema.build_event`` and ``core.events.bus.event_bus.publish``.
-"""
+from core.events.emitter import emit
 
-__all__: list[str] = []
+__all__ = ['emit']

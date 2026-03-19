@@ -1,4 +1,17 @@
 version: "3.9"
+
+# Shared env for API + optional standalone worker (same DB + LLM)
+x-backend-runtime-env: &backend_runtime_env
+  DATABASE_URL: sqlite:///./storage/postgres/operator_one.db
+  SESSION_SECRET: dev-session-secret
+  ARTIFACTS_DIR: ./storage/artifacts/data
+  SERVICE_TOKEN: dev-internal-token
+  OPENAI_PROXY_API_KEY: dev-openai-proxy-key
+  LLM_BACKEND: openai_compatible
+  LOCAL_LLM_BASE_URL: http://ollama:11434/v1
+  LOCAL_LLM_MODEL: llama3.2
+  CORS_ORIGINS: http://localhost:5173,http://localhost:8080,http://127.0.0.1:8080
+
 services:
   ollama:
     image: ollama/ollama:latest
@@ -15,15 +28,20 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: sqlite:///./storage/postgres/operator_one.db
-      SESSION_SECRET: dev-session-secret
-      ARTIFACTS_DIR: ./storage/artifacts/data
-      SERVICE_TOKEN: dev-internal-token
-      OPENAI_PROXY_API_KEY: dev-openai-proxy-key
-      LLM_BACKEND: openai_compatible
-      LOCAL_LLM_BASE_URL: http://ollama:11434/v1
-      LOCAL_LLM_MODEL: llama3.2
-      CORS_ORIGINS: http://localhost:5173,http://localhost:8080,http://127.0.0.1:8080
+      <<: *backend_runtime_env
+      # Set to false in `.env` when using `docker compose --profile worker up`
+      WORKER_IN_PROCESS: ${WORKER_IN_PROCESS:-true}
+    depends_on:
+      - ollama
+  worker:
+    profiles: ["worker"]
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash -lc "pip install -r requirements.txt && python -m worker"
+    environment:
+      <<: *backend_runtime_env
     depends_on:
       - ollama
   web:

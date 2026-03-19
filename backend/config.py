@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     local_llm_timeout_seconds: float = 120.0
     run_timeout_seconds: float = 600.0
     worker_poll_interval_seconds: float = 0.35
+    worker_in_process: bool = True
     intake_allow_private_hosts: bool = False
     intake_allow_domains: str = ''
     intake_deny_domains: str = 'localhost,127.0.0.1,::1,0.0.0.0'
