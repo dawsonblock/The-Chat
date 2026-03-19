@@ -84,13 +84,18 @@ There is no fixed account. Enter any email on `/login`; the backend creates a lo
 
 ## Tests & CI
 
+One-shot (same steps as GitHub Actions):
+
+```bash
+./scripts/verify-build.sh
+```
+
+Or manually:
+
 ```bash
 pip install -r requirements-dev.txt
 pytest -q
-```
-
-```bash
-cd product/web && npm run build
+cd product/web && npm ci && npm run build
 ```
 
 GitHub Actions: `.github/workflows/ci.yml` (Python 3.12 + Node 22).
@@ -116,7 +121,7 @@ api/              # public + internal + OpenAI-compat routes
 core/             # runtime, tools, intake, events
 product/web/      # React operator shell
 storage/          # models, migrations path, artifacts root
-scripts/          # migrate, smoke, dev helpers
+scripts/          # migrate, verify-build.sh (CI parity), dev helpers
 ```
 
 ---
