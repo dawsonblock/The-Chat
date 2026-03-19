@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from core.events.bus import event_bus
+from core.events.emitter import emit
 from core.events.schema import build_event
 from core.runtime.cancellation.service import cancellation_service
 from core.runtime.provider import provider
@@ -58,7 +58,7 @@ async def execute_chat_run(run_id: str, payload: dict, *, user_id: str, conversa
             if is_cancelled(run_id):
                 run_service.set_status(run_id, 'cancelled', failure_class='cancelled')
                 await run_service.emit_status(run_id, 'cancelled')
-                await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
+                await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
                 return
             final_text = crawl_result.output.get('summary', '') if crawl_result.ok else (crawl_result.error_message or 'The crawl did not complete.')
         elif urls:
@@ -66,7 +66,7 @@ async def execute_chat_run(run_id: str, payload: dict, *, user_id: str, conversa
             if is_cancelled(run_id):
                 run_service.set_status(run_id, 'cancelled', failure_class='cancelled')
                 await run_service.emit_status(run_id, 'cancelled')
-                await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
+                await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
                 return
             if extracted.ok:
                 summary = await dispatcher.run_tool(run_id=run_id, user_id=user_id, conversation_id=conversation_id, name='summarize_text', args={'text': extracted.output.get('text_content', '')})
@@ -80,7 +80,7 @@ async def execute_chat_run(run_id: str, payload: dict, *, user_id: str, conversa
             if is_cancelled(run_id):
                 run_service.set_status(run_id, 'cancelled', failure_class='cancelled')
                 await run_service.emit_status(run_id, 'cancelled')
-                await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
+                await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
                 return
             final_text = summary.output.get('summary', '') if summary.ok else await provider.generate(source_text)
         else:
@@ -88,22 +88,22 @@ async def execute_chat_run(run_id: str, payload: dict, *, user_id: str, conversa
             if is_cancelled(run_id):
                 run_service.set_status(run_id, 'cancelled', failure_class='cancelled')
                 await run_service.emit_status(run_id, 'cancelled')
-                await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
+                await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
                 return
             final_text = summary.output.get('summary', '') if summary.ok else await provider.generate(message)
 
         if is_cancelled(run_id):
             run_service.set_status(run_id, 'cancelled', failure_class='cancelled')
             await run_service.emit_status(run_id, 'cancelled')
-            await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
+            await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
             return
 
         run_service.set_output(run_id, final_text)
         await run_service.emit_text(run_id, final_text)
         run_service.set_status(run_id, 'succeeded')
         await run_service.emit_status(run_id, 'succeeded')
-        await event_bus.publish(run_id, build_event('run.completed', runId=run_id))
+        await emit(run_id, build_event('run.completed', runId=run_id))
     except Exception as exc:
         run_service.fail_run(run_id, str(exc), failure_class='infra')
         await run_service.emit_status(run_id, 'failed')
-        await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'run_failed', 'message': str(exc)}))
+        await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'run_failed', 'message': str(exc)}))

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from core.events.bus import event_bus
+from core.events.emitter import emit
 from core.events.schema import build_event
 from core.runtime.cancellation.service import cancellation_service
 from core.runtime.service import run_service
@@ -39,7 +39,7 @@ async def execute_workflow_run(run_id: str, workflow_version_id: str, inputs: di
             if cancellation_service.is_cancelled(run_id):
                 run_service.set_status(run_id, 'cancelled', failure_class='cancelled')
                 await run_service.emit_status(run_id, 'cancelled')
-                await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
+                await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'cancelled', 'message': 'Run cancelled.'}))
                 return
             if node.get('kind') == 'tool':
                 args = _resolve(node.get('config', {}), inputs, last_output)
@@ -57,8 +57,8 @@ async def execute_workflow_run(run_id: str, workflow_version_id: str, inputs: di
         await run_service.emit_text(run_id, final_text)
         run_service.set_status(run_id, 'succeeded')
         await run_service.emit_status(run_id, 'succeeded')
-        await event_bus.publish(run_id, build_event('run.completed', runId=run_id))
+        await emit(run_id, build_event('run.completed', runId=run_id))
     except Exception as exc:
         run_service.fail_run(run_id, str(exc), failure_class='infra')
         await run_service.emit_status(run_id, 'failed')
-        await event_bus.publish(run_id, build_event('run.failed', runId=run_id, error={'code': 'workflow_failed', 'message': str(exc)}))
+        await emit(run_id, build_event('run.failed', runId=run_id, error={'code': 'workflow_failed', 'message': str(exc)}))

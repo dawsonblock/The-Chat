@@ -33,12 +33,12 @@ input (chat | workflow)
 | [`core/runtime/worker.py`](../core/runtime/worker.py) | Polls DB for `queued` runs; **`RuntimeEngine().run(run.id)`** only (with timeout) |
 | [`core/runtime/engine.py`](../core/runtime/engine.py) | **`RuntimeEngine.run(run_id)`** → `execute_chat_run` / `execute_workflow_run` / unknown-kind fail |
 | [`core/runtime/run_manager.py`](../core/runtime/run_manager.py) | `get_run_for_execution(run_id)` (read path for engine) |
-| [`core/events/emitter.py`](../core/events/emitter.py) | **`emit()`** → persist + SSE (dispatcher uses this) |
+| [`core/events/emitter.py`](../core/events/emitter.py) | **`emit()`** → persist + SSE (runtime `service` / `execution/*` / `engine` / `worker`, dispatcher) |
 | [`core/runtime/event_emitter.py`](../core/runtime/event_emitter.py) | Re-export of `emit` (compat) |
 | [`core/runtime/execution/chat_run.py`](../core/runtime/execution/chat_run.py) | Chat run body: **`dispatcher.run_tool`**, **`provider.generate`** |
 | [`core/runtime/execution/workflow_run.py`](../core/runtime/execution/workflow_run.py) | Workflow run body |
 | [`core/tools/dispatcher.py`](../core/tools/dispatcher.py) | Tool execution, policies, approvals, idempotency |
-| [`core/runtime/executor.py`](../core/runtime/executor.py) | Re-exports `RuntimeEngine`, cancel, `execute_*` (compat; prefer engine for new code) |
+| [`core/runtime/executor.py`](../core/runtime/executor.py) | Facade: `RuntimeEngine`, `cancel_run`, `is_cancelled` only (no `execute_*` export) |
 | [`api/openai_compat/router.py`](../api/openai_compat/router.py) | **`/v1/chat/completions`** → **`provider.generate`** (Open WebUI); **bypasses run queue** |
 
 **Queue:** in-process asyncio worker + DB-backed `runs.status`, not Redis/RQ.

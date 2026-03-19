@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from backend.config import settings
-from core.events.bus import event_bus
+from core.events.emitter import emit
 from core.events.schema import build_event
 from core.runtime.engine import RuntimeEngine
 from core.runtime.service import run_service
@@ -27,7 +27,7 @@ async def runtime_worker_loop(stop: asyncio.Event) -> None:
             except asyncio.TimeoutError:
                 run_service.fail_run(run.id, 'Run exceeded timeout.', failure_class='timeout')
                 await run_service.emit_status(run.id, 'failed')
-                await event_bus.publish(
+                await emit(
                     run.id,
                     build_event(
                         'run.failed',

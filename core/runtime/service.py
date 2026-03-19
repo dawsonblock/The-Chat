@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from core.events.bus import event_bus
+from core.events.emitter import emit
 from core.events.schema import build_event
 from core.runtime.state.status import RUN_STATUSES
 from storage.db import SessionLocal
@@ -125,14 +125,14 @@ class RunService:
         self.set_status(run_id, 'failed', error_message=message, failure_class=failure_class)
 
     async def emit_created(self, run_id: str):
-        await event_bus.publish(run_id, build_event('run.created', runId=run_id))
+        await emit(run_id, build_event('run.created', runId=run_id))
 
     async def emit_status(self, run_id: str, status: str):
-        await event_bus.publish(run_id, build_event('run.status', runId=run_id, status=status))
+        await emit(run_id, build_event('run.status', runId=run_id, status=status))
 
     async def emit_text(self, run_id: str, text: str, chunk_size: int = 160):
         for i in range(0, len(text), chunk_size):
-            await event_bus.publish(run_id, build_event('message.delta', runId=run_id, text=text[i:i + chunk_size]))
+            await emit(run_id, build_event('message.delta', runId=run_id, text=text[i:i + chunk_size]))
 
 
 run_service = RunService()

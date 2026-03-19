@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from core.events.bus import event_bus
+from core.events.emitter import emit
 from core.events.schema import build_event
 from core.runtime.execution.chat_run import execute_chat_run
 from core.runtime.execution.workflow_run import execute_workflow_run
@@ -42,7 +42,7 @@ class RuntimeEngine:
 
         run_service.fail_run(run.id, f'Unknown run kind {run.kind}', failure_class='user_error')
         await run_service.emit_status(run.id, 'failed')
-        await event_bus.publish(
+        await emit(
             run.id,
             build_event('run.failed', runId=run.id, error={'code': 'unknown_kind', 'message': run.kind}),
         )
