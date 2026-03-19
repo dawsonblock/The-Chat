@@ -29,13 +29,17 @@ export function ChatPage({ user: _user }) {
     if (!conversationId) return
     const rows = await api(`/api/conversations/${conversationId}/runs`)
     setConversationRuns(rows)
-    if (!runId && rows[0]) setSelectedRunId(rows[0].id)
+    if (rows.length) setSelectedRunId(rows[0].id)
+    else setSelectedRunId(null)
   }
 
   useEffect(() => { loadConversations().catch(console.error) }, [])
 
   useEffect(() => {
     if (!currentConversationId) return
+    setSelectedRunId(null)
+    setSelectedRunMeta(null)
+    setRunEvents([])
     api(`/api/conversations/${currentConversationId}`).then((data) => setMessages(data.messages || [])).catch(console.error)
     loadConversationRuns(currentConversationId).catch(console.error)
   }, [currentConversationId])
@@ -58,20 +62,15 @@ export function ChatPage({ user: _user }) {
             if (current.some((item) => item.seq_no === event.seq_no)) return current
             return [...current, event]
           })
-          if (event.type === 'message.delta') {
-            setMessages((current) => {
-              const copy = [...current]
-              const last = copy[copy.length - 1]
-              if (last && last.role === 'assistant' && last.run_id === selectedRunId) {
-                last.content += event.text
-              } else {
-                copy.push({ id: `assistant-${Date.now()}`, role: 'assistant', content: event.text, run_id: selectedRunId })
-              }
-              return copy
-            })
-          }
           if (event.type === 'run.completed' || event.type === 'run.failed') {
             setBusy(false)
+            api(`/api/runs/${selectedRunId}/bundle`)
+              .then((bundle) => {
+                const norm = normalizeRunBundle(bundle)
+                setSelectedRunMeta(norm.run || null)
+                setRunEvents(norm.events || [])
+              })
+              .catch(console.error)
             loadConversations().catch(console.error)
             if (currentConversationId) loadConversationRuns(currentConversationId).catch(console.error)
           }

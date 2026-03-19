@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from core.approvals.service import approval_service
 from core.events.sse.stream import format_sse_event, sse_keepalive
+from core.auth.runs import require_run_for_user
 from core.auth.service import get_current_user
 from core.events.bus import event_bus
 from core.events.store import event_store
@@ -117,8 +118,9 @@ def get_run(run_id: str, user=Depends(get_current_user)):
 
 @router.get('/{run_id}/bundle')
 def get_run_bundle(run_id: str, user=Depends(get_current_user)):
+    require_run_for_user(run_id, user.user_id)
     with SessionLocal() as db:
-        run = db.query(Run).filter(Run.id == run_id, Run.user_id == user.user_id).first()
+        run = db.query(Run).filter(Run.id == run_id).first()
         if not run:
             raise HTTPException(status_code=404, detail='Run not found')
         events = db.query(RunEvent).filter(RunEvent.run_id == run_id).order_by(RunEvent.seq_no.asc()).all()
@@ -147,8 +149,9 @@ def get_run_bundle(run_id: str, user=Depends(get_current_user)):
 
 @router.post('/{run_id}/approve')
 def approve_run(run_id: str, body: ApprovalBody, user=Depends(get_current_user)):
+    require_run_for_user(run_id, user.user_id)
     try:
-        row = approval_service.resolve(body.approval_id, body.decision)
+        row = approval_service.resolve(body.approval_id, body.decision, run_id=run_id)
         return {'ok': True, 'approval_id': row.id, 'decision': row.decision}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -156,9 +159,7 @@ def approve_run(run_id: str, body: ApprovalBody, user=Depends(get_current_user))
 
 @router.post('/{run_id}/cancel')
 def cancel_run_route(run_id: str, user=Depends(get_current_user)):
-    run = run_service.get_run(run_id)
-    if not run or run.user_id != user.user_id:
-        raise HTTPException(status_code=404, detail='Run not found')
+    run = require_run_for_user(run_id, user.user_id)
     cancel_run(run_id)
     if run.status == 'queued':
         run_service.set_status(run_id, 'cancelled', failure_class='cancelled')
@@ -167,9 +168,7 @@ def cancel_run_route(run_id: str, user=Depends(get_current_user)):
 
 @router.get('/{run_id}/events')
 async def stream_run_events(run_id: str, request: Request, user=Depends(get_current_user)):
-    run = run_service.get_run(run_id)
-    if not run or run.user_id != user.user_id:
-        raise HTTPException(status_code=404, detail='Run not found')
+    require_run_for_user(run_id, user.user_id)
     last_seq = int(request.query_params.get('last_event_id', '0') or 0)
 
     async def event_generator():

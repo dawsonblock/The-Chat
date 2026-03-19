@@ -23,10 +23,12 @@ class ApprovalService:
         finally:
             self._waiters.pop(approval_id, None)
 
-    def resolve(self, approval_id: str, decision: str) -> ApprovalRequest:
+    def resolve(self, approval_id: str, decision: str, *, run_id: str | None = None) -> ApprovalRequest:
         with SessionLocal() as db:
             row = db.query(ApprovalRequest).filter(ApprovalRequest.id == approval_id).first()
             if not row:
+                raise ValueError('approval not found')
+            if run_id is not None and row.run_id != run_id:
                 raise ValueError('approval not found')
             row.status = 'decided'
             row.decision = decision

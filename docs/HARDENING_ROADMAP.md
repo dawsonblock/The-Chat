@@ -31,11 +31,11 @@ This maps the **non-negotiable target** (one loop: input → run → runtime →
 - [x] **Phase 5 (runtime path)** — Workflow runs are `kind: workflow` rows; **`RuntimeEngine.run`** → `execute_workflow_run` (same queue/worker as chat). Flowgram export / spec hardening still open.
 - [x] **Phase 6 (initial)** — `/internal/intake/*` requires `X-Service-Token` (`SERVICE_TOKEN`); target remains tools-only for product callers
 - [x] **Phase 7 (initial)** — `POST /api/runs` + `/chat` alias; `/v1` documented bypass (Open WebUI); path naming polish later
-- [x] **Phase 8 (incremental)** — When a **conversation run** is selected, main transcript uses [`transcriptFromRunEvents`](../product/web/src/lib/runStore.js); conversation list still loads messages API when no run selected
+- [x] **Phase 8 (incremental)** — Latest conversation run auto-selected; transcript from [`transcriptFromRunEvents`](../product/web/src/lib/runStore.js); bundle refresh on `run.completed`; messages API only when no run / fallback
 - [x] **Phase 9 (initial)** — [`product/widgets/renderRunEvent.jsx`](../product/widgets/renderRunEvent.jsx) + `RunTimeline`; expand coverage as types stabilize
 - [x] **Phase 10 (existing)** — Dispatcher → `file_service.create_artifact` → `artifact.created` + `ArtifactPreview` in timeline
 - [x] **Phase 11 (partial)** — Optional **`REDIS_URL`** + `notify_run_queued` / worker `BRPOP` (DB remains truth); **RQ/Celery** not adopted
-- [x] **Phase 12 (initial)** — [`docs/AUTH_MATRIX.md`](AUTH_MATRIX.md); central `core/auth` enforcement still future
+- [x] **Phase 12 (incremental)** — [`require_run_for_user`](../core/auth/runs.py) + approval **`run_id`** binding; matrix in [`AUTH_MATRIX.md`](AUTH_MATRIX.md)
 - [x] **Phase 13 (initial)** — [`core/runtime/control.py`](../core/runtime/control.py) for cancel entry; tool timeouts + retries in dispatcher
 - [x] **Phase 14 (initial)** — `durationMs` on `tool.finished` events + **ToolResultCard** display
 - [x] **Phase 15 (pass)** — Cancel via `control`; docs/links; deeper dedupe deferred
