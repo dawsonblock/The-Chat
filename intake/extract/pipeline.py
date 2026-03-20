@@ -49,6 +49,11 @@ async def extract_page(url: str, *, render_js: bool = False, include_html: bool 
                     )
                 )
                 db.commit()
+                # Same as fresh path: preview from this response's HTML (hash match; URL may differ).
+                if include_html:
+                    preview_html = sanitize_html_for_preview(html)
+                    if preview_html:
+                        doc.metadata['sanitized_preview_html'] = preview_html
                 return doc
 
         meta = {'status_code': status_code, 'fetch_mode': mode, 'final_url': final_url}
